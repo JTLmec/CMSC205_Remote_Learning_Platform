@@ -1,21 +1,7 @@
-# backend/backend/core/config.py
 import os
 from dotenv import load_dotenv
+load_dotenv()  # loads backend/.env locally in dev
 
-load_dotenv()  # load .env values locally; Render will use environment vars
-
-class Settings:
-    # REQUIRED for any Supabase project
-    SUPABASE_URL: str = "https://mzjphxynfusdiyuoacba.supabase.co"
-
-    # DO NOT hardcode keys — read from environment
-    SUPABASE_SERVICE_ROLE: str = os.getenv("SUPABASE_SERVICE_ROLE")
-    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY")
-
-    # Database (Supabase Postgres)
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
-
-    # Auth settings (optional)
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-secret")
-
-settings = Settings()
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mzjphxynfusdiyuoacba.supabase.co")
+SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE")  # must be set in Render (secret)
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")        # optional for frontend/testing
