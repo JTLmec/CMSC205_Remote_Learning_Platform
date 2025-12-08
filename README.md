@@ -83,35 +83,5 @@ Deploy to Render (short)
 	3.	Set Build & Start commands for each (see render.yaml example in this repo)
 	4.	Add environment variables to Render dashboard (SUPABASE_* and DATABASE_URL)
 
-⸻
 
-FOLDER STRUCTURE (Detailed)
-
-remote-learning-platform/
-├─ backend/                    # backend repo module
-│  ├─ backend/                 # python package
-│  │  ├─ __init__.py
-│  │  ├─ main.py               # FastAPI app entrypoint
-│  │  ├─ core/
-│  │  │  └─ config.py
-│  │  ├─ routers/
-│  │  │  ├─ auth.py
-│  │  │  ├─ materials.py
-│  │  │  └─ ...
-│  │  ├─ services/
-│  │  │  └─ supabase_service.py
-│  │  └─ dependencies.py
-│  └─ requirements.txt
-├─ frontend/
-│  ├─ frontend/                # streamlit entry (main.py or UI.py)
-│  │  ├─ main.py
-│  │  └─ components/
-│  │     ├─ auth.py
-│  │     ├─ materials.py
-│  │     ├─ upload.py
-│  │     └─ dashboard.py
-│  ├─ requirements.txt
-│  └─ .env
-├─ .gitignore
-└─ README.md
 
