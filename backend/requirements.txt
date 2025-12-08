@@ -5,3 +5,4 @@ supabase
 storage3
 requests
 python-multipart
+PyJWT>=2.0.0
