@@ -2,7 +2,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 from supabase import create_client
-from backend.core import config
+from core import config
 
 logger = logging.getLogger("supabase_service")
 
@@ -15,6 +15,7 @@ if not KEY:
     )
 
 _supabase = create_client(config.SUPABASE_URL, KEY)
+
 
 def upload_file(bucket: str, path: str, file_bytes: bytes, content_type: str) -> Dict[str, Any]:
     """
@@ -106,3 +107,6 @@ def create_signed_url(bucket: str, path: str, expires: int = 3600) -> Dict[str, 
     except Exception:
         logger.exception("create_signed_url error")
         raise
+
+
+    
