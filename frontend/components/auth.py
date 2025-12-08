@@ -4,7 +4,6 @@ import streamlit as st
 from supabase import create_client
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -13,69 +12,70 @@ supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 def _set_user_from_response(res):
     """
-    Normalize supabase response into a small dict and store in session_state.
-    Keeps only safe fields we actually need in the UI.
+    Normalize different supabase return shapes.
+    Sets:
+      st.session_state['user'] = { 'email': ..., 'id': ..., ... }  (a dict)
+      st.session_state['access_token'] = "<token>"  (string) if available
     """
-    user_obj = None
+    user = None
+    token = None
 
-    # supabase python client returns either dict-like or object-like
+    # common dict shape: { "data": { "user": {...}, "session": {...} }, "error": None }
     if isinstance(res, dict):
-        # many SDK calls return {"user": {...}, ...}
-        user_obj = res.get("user") or res.get("data") or res
+        data = res.get("data") or res
+        # nested 'user' in 'data'
+        if isinstance(data, dict):
+            # session-based response
+            session = data.get("session") or data.get("data", {}).get("session")
+            if session and isinstance(session, dict):
+                token = session.get("access_token") or session.get("accessToken")
+            # direct user object
+            user = data.get("user") or data.get("user", None)
+            # sometimes user is directly in 'data'
+            if not user and "email" in data:
+                user = {k: data.get(k) for k in ("id", "email", "role") if k in data}
     else:
-        user_obj = getattr(res, "user", None) or res
+        # object-like responses (older libs)
+        user = getattr(res, "user", None) or getattr(res, "data", None)
 
-    # Extract minimal, safe fields
-    if user_obj:
+    # fallback: if user is nested in session->user
+    if not user and isinstance(data, dict):
+        sess = data.get("session")
+        if isinstance(sess, dict):
+            maybe_user = sess.get("user")
+            if maybe_user:
+                user = maybe_user
+                token = token or sess.get("access_token")
+
+    # final fallback: if res has .data and that .data has .user
+    if not user:
         try:
-            # user_obj may be a simple dict or a model-like object
-            email = user_obj.get("email") if isinstance(user_obj, dict) else getattr(user_obj, "email", None)
-            user_id = user_obj.get("id") if isinstance(user_obj, dict) else getattr(user_obj, "id", None)
-            role = user_obj.get("role") if isinstance(user_obj, dict) else getattr(user_obj, "role", None)
-            confirmed = user_obj.get("confirmed_at") if isinstance(user_obj, dict) else getattr(user_obj, "confirmed_at", None)
-            last_sign_in = user_obj.get("last_sign_in_at") if isinstance(user_obj, dict) else getattr(user_obj, "last_sign_in_at", None)
+            data_attr = getattr(res, "data", None)
+            if isinstance(data_attr, dict):
+                user = data_attr.get("user") or data_attr
+            elif hasattr(data_attr, "user"):
+                user = getattr(data_attr, "user", None)
         except Exception:
-            email = None
-            user_id = None
-            role = None
-            confirmed = None
-            last_sign_in = None
+            pass
 
-        # Keep only the fields we need (safe to show in UI)
-        st.session_state["user"] = {
-            "email": email,
-            "id": str(user_id) if user_id else None,
-            "role": role,
-            "confirmed_at": str(confirmed) if confirmed else None,
-            "last_sign_in_at": str(last_sign_in) if last_sign_in else None,
-        }
+    # write into session_state in minimal safe form
+    if isinstance(user, dict):
+        st.session_state["user"] = {"email": user.get("email"), "id": user.get("id"), "role": user.get("role")}
+    elif user:
+        # object-like user
+        st.session_state["user"] = {"email": getattr(user, "email", None), "id": getattr(user, "id", None)}
+    else:
+        st.session_state["user"] = None
+
+    if token:
+        st.session_state["access_token"] = token
 
 def login(email: str, password: str):
     try:
+        # supabase-py modern API
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        # res shape may be {'data': {'session': {...}, 'user': {...}}}
-        session = None
-        if isinstance(res, dict) and "data" in res:
-            session = res["data"].get("session") or res["data"]
-        elif hasattr(res, "data"):
-            session = res.data
-        access_token = None
-        user = None
-        if session:
-            access_token = session.get("access_token") or session.get("accessToken") or session.get("token")
-            user = session.get("user") or session.get("user")
-        # fallback: check res directly
-        if not access_token and isinstance(res, dict):
-            access_token = res.get("access_token") or res.get("accessToken")
-            user = user or res.get("user")
-        if access_token:
-            st.session_state["access_token"] = access_token
-        if user:
-            # store at least email and id
-            if isinstance(user, dict):
-                st.session_state["user"] = {"email": user.get("email"), "id": user.get("id"), "role": user.get("role")}
-            else:
-                st.session_state["user"] = {"email": getattr(user, "email", None), "id": getattr(user, "id", None)}
+        # set session vars
+        _set_user_from_response(res)
         return True
     except Exception as e:
         st.error(f"Login failed: {e}")
@@ -84,18 +84,19 @@ def login(email: str, password: str):
 def signup(email: str, password: str):
     try:
         res = supabase.auth.sign_up({"email": email, "password": password})
-        #st.write("DEBUG RESPONSE:", res)  # TEMPORARY
         st.success("Account created! Please log in.")
     except Exception as e:
         st.error(f"Signup failed: {e}")
 
 def logout():
+    # clear state and rerun
+    st.session_state["user"] = None
+    st.session_state["access_token"] = None
+    # use current API to rerun
     try:
-        # supabase python lib may not implement sign_out server-side; just clear session
-        st.session_state["user"] = None
         st.rerun()
     except Exception:
-        st.session_state["user"] = None
+        pass
 
 def render_auth():
     st.title("Please sign in")
@@ -104,8 +105,10 @@ def render_auth():
         email = st.text_input("Email", key="login_email")
         password = st.text_input("Password", type="password", key="login_pw")
         if st.button("Login"):
-            if login(email, password):
+            ok = login(email, password)
+            if ok:
                 st.success("Logged in")
+                # Force a rerun so main.py sees st.session_state['user']
                 st.rerun()
 
     with tab_signup:

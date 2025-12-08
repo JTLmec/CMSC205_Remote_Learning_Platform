@@ -59,43 +59,47 @@ def render_modules():
     # -------------------------
     # UPLOAD MODULE (teachers only)
     # -------------------------
-    with tab_upload:
-        user = st.session_state.get("user") or {}
-        role = (user.get("role") or "").lower() if isinstance(user, dict) else ""
-
+    # Upload tab - show only if teacher
+    user = st.session_state.get("user") or {}
+    role = user.get("role")
+    with tab2:
         if role != "teacher":
             st.info("Only teachers may upload modules.")
-            return
-
-        subject = st.text_input("Subject (required)")
-        file = st.file_uploader("PDF", type=["pdf"])
-        if st.button("Upload Module"):
-            if not subject or not subject.strip():
-                st.warning("Subject is required.")
-                return
-            if not file:
-                st.warning("Please choose a PDF file")
-                return
-
-            files = {"file": (file.name, file.getvalue(), file.type)}
-            data = {"subject": subject.strip()}
-
-            headers = {}
-            token = st.session_state.get("access_token")
-            if token:
-                headers["Authorization"] = f"Bearer {token}"
-
-            try:
-                r = requests.post(f"{API_BASE}/modules/upload", files=files, data=data, headers=headers, timeout=60)
-                if r.status_code in (200, 201):
-                    st.success("Uploaded")
-                    # show backend response (path/url)
-                    try:
-                        st.json(r.json())
-                    except Exception:
-                        st.write("Upload succeeded (no JSON returned).")
+        else:
+            subject = st.text_input("Subject (required)")
+            file = st.file_uploader("PDF", type=["pdf"])
+            if st.button("Upload Module"):
+                if not subject or not file:
+                    st.warning("Subject and file required")
                 else:
-                    st.error(f"Upload failed: {r.status_code}")
-                    st.text(r.text)
-            except requests.exceptions.RequestException as e:
-                st.error(f"Upload request failed: {e}")
+                    files = {"file": (file.name, file.getvalue(), file.type)}
+                    data = {"subject": subject}
+
+                    # Build headers with access token from session state
+                    headers = {}
+                    token = st.session_state.get("access_token")
+                    if token:
+                        headers["Authorization"] = f"Bearer {token}"
+                    else:
+                        st.error("No access token found. Please log out and log in again.")
+                        st.stop()
+
+                    try:
+                        r = requests.post(
+                            f"{API_BASE}/modules/upload",
+                            files=files,
+                            data=data,
+                            headers=headers,
+                            timeout=30
+                        )
+                    except Exception as e:
+                        st.error(f"Network error: {e}")
+                        st.stop()
+
+                    if r.status_code == 200:
+                        st.success("Uploaded")
+                        st.json(r.json())
+                    elif r.status_code == 401:
+                        st.error("Upload failed: Unauthorized. Token invalid/expired. Please re-login.")
+                    else:
+                        st.error(f"Upload failed: {r.status_code} - {r.text}")
