@@ -1,0 +1,85 @@
+# ------------------------
+# PYTHON / FASTAPI BACKEND
+# ------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+
+# Local environment variables
+.env
+backend/.env
+frontend/.env
+
+# Logs
+*.log
+logs/
+nohup.out
+
+# Byte-compiled files
+*.sqlite3
+*.db
+
+# Uvicorn reload cache
+.hotreload/
+
+# Coverage
+.coverage
+htmlcov/
+.coverage.*
+
+# ------------------------
+# STREAMLIT FRONTEND
+# ------------------------
+.streamlit/
+cache/
+frontend/cache/
+**/__pycache__/
+**/.pytest_cache/
+
+# Streamlit generated folders
+.streamlit/secrets.toml
+
+# Uploaded temp files
+*.pdf
+frontend/uploads/
+
+# ------------------------
+# OS / EDITOR FILES
+# ------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ------------------------
+# NODE / JS (if added later)
+# ------------------------
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+dist/
+build/
+
+# ------------------------
+# SUPABASE
+# ------------------------
+supabase/.branches
+supabase/.temp
+supabase/.env
+.supabase/
+
+# ------------------------
+# RENDER / DEPLOYMENT
+# ------------------------
+.render/
