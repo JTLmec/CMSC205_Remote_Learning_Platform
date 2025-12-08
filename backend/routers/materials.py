@@ -4,7 +4,7 @@ import uuid
 import os
 import traceback
 from typing import List, Dict, Any
-from backend.services.supabase_service import upload_file, list_files, create_signed_url
+from services.supabase_service import upload_file, list_files, create_signed_url
 
 # storage3-specific exception class
 from storage3.utils import StorageException

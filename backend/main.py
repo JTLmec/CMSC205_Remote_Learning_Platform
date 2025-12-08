@@ -1,7 +1,7 @@
 # backend/backend/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import materials
+from routers import materials
 
 app = FastAPI(title="Remote Learning Platform API (minimal)")
 
