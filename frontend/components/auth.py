@@ -4,6 +4,7 @@ import streamlit as st
 from supabase import create_client
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -52,7 +53,29 @@ def _set_user_from_response(res):
 def login(email: str, password: str):
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        _set_user_from_response(res)
+        # res shape may be {'data': {'session': {...}, 'user': {...}}}
+        session = None
+        if isinstance(res, dict) and "data" in res:
+            session = res["data"].get("session") or res["data"]
+        elif hasattr(res, "data"):
+            session = res.data
+        access_token = None
+        user = None
+        if session:
+            access_token = session.get("access_token") or session.get("accessToken") or session.get("token")
+            user = session.get("user") or session.get("user")
+        # fallback: check res directly
+        if not access_token and isinstance(res, dict):
+            access_token = res.get("access_token") or res.get("accessToken")
+            user = user or res.get("user")
+        if access_token:
+            st.session_state["access_token"] = access_token
+        if user:
+            # store at least email and id
+            if isinstance(user, dict):
+                st.session_state["user"] = {"email": user.get("email"), "id": user.get("id"), "role": user.get("role")}
+            else:
+                st.session_state["user"] = {"email": getattr(user, "email", None), "id": getattr(user, "id", None)}
         return True
     except Exception as e:
         st.error(f"Login failed: {e}")
