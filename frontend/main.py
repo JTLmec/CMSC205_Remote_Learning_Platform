@@ -2,66 +2,99 @@
 import os
 import streamlit as st
 
-# configure API base (change to deployed backend when needed)
-API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+# Try importing both ways so it works whether you run:
+#   streamlit run frontend/main.py
+# OR
+#   cd frontend && streamlit run main.py
+try:
+    from frontend.components import auth as auth_comp
+    from frontend.components import assignments
+    from frontend.components import modules
+    from frontend.components import dashboard
+except Exception:
+    from components import auth as auth_comp
+    from components import assignments
+    from components import modules
+    from components import dashboard
+
+# -----------------------------------------
+# GLOBAL PAGE CONFIG
+# -----------------------------------------
 st.set_page_config(page_title="Remote Learning Platform", layout="wide")
 
-# make API_BASE available to modules via session_state
-st.session_state.setdefault("API_BASE", API_BASE)
-st.session_state.setdefault("user", None)   # ensure user key exists
+# -----------------------------------------
+# APP BASE URL (frontend to backend)
+# -----------------------------------------
+API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+st.session_state["API_BASE"] = API_BASE
 
-# import auth + UI modules (we import other modules lazily below to avoid import-time errors)
-from components import auth, dashboard, materials, upload  # leave upload if you still use it
+# -----------------------------------------
+# ROUTING HELPER
+# -----------------------------------------
+def _nav():
+    if "nav" not in st.session_state:
+        st.session_state["nav"] = "Login"
+    return st.session_state["nav"]
 
-# If not logged in, show auth UI and halt
-if not st.session_state.get("user"):
-    auth.render_auth()
+# -----------------------------------------
+# SIDEBAR MENU
+# -----------------------------------------
+with st.sidebar:
+    st.title("Navigation")
+
+    # Show different menus depending on login
+    profile = st.session_state.get("profile") or st.session_state.get("user")
+
+    if profile:
+        role = (profile.get("role") or "").lower()
+        email = profile.get("email", "unknown")
+
+        st.markdown(f"**User:** {email}")
+        st.markdown(f"**Role:** {role.capitalize()}")
+
+        if st.button("Logout"):
+            auth_comp.logout()
+            st.stop()
+
+        st.markdown("---")
+
+        # Navigation items (Materials removed)
+        # include Dashboard for quick overview
+        pages = ["Dashboard", "Assignments", "Modules"]
+
+        # Ensure stored nav is valid for logged-in users
+        current_nav = st.session_state.get("nav", "Dashboard")
+        if current_nav == "Login":
+            current_nav = "Dashboard"
+        if current_nav not in pages:
+            current_nav = "Dashboard"
+
+        st.session_state["nav"] = st.radio("Go to:", pages, index=pages.index(current_nav))
+
+    else:
+        st.session_state["nav"] = st.radio("Go to:", ["Login"], index=0)
+
+# -----------------------------------------
+# PAGE CONTENT HANDLING
+# -----------------------------------------
+current = _nav()
+
+# LOGIN PAGE
+if current == "Login":
+    auth_comp.render_auth()
     st.stop()
 
-# sidebar: show minimal user info & logout + navigation
-with st.sidebar:
-    user = st.session_state.get("user")
-    st.markdown("### 👤 Account")
-    if user:
-        st.write(f"**Email:** {user.get('email')}")
-        if user.get("role"):
-            st.write(f"**Role:** {user.get('role')}")
-        if user.get("last_sign_in_at"):
-            st.write(f"**Last signed in:** {user.get('last_sign_in_at')}")
-    else:
-        st.info("Not signed in")
+# AUTH REQUIRED PAGES
+profile = st.session_state.get("profile") or st.session_state.get("user")
+if not profile:
+    st.warning("You must log in to continue.")
+    auth_comp.render_auth()
+    st.stop()
 
-    st.write("---")
-    # <-- Changed label here: Quizzes -> Assignments
-    page = st.radio("Navigate", ["🏠 Home", "📘 Modules", "📝 Assignments"], index=0)
-    if st.button("Logout"):
-        auth.logout()
-        st.rerun()
-
-# main content switch
-if page == "🏠 Home":
+# ROUTE
+if current == "Dashboard":
     dashboard.render_dashboard()
-
-elif page == "📘 Modules":
-    # old 'materials' → now shown as Modules
-    # some components may have different function names; try both common names
-    if hasattr(materials, "render_materials"):
-        materials.render_materials()
-    else:
-        # fallback to older name if present
-        materials.render_materials_page()
-
-elif page == "📝 Assignments":
-    # load assignments component (create frontend/components/assignments.py)
-    try:
-        from components import assignments
-    except Exception:
-        st.error("Assignments component not found. Add frontend/components/assignments.py")
-    else:
-        # call standardized render function name
-        if hasattr(assignments, "render_assignments"):
-            assignments.render_assignments()
-        elif hasattr(assignments, "render_assignments_page"):
-            assignments.render_assignments_page()
-        else:
-            st.error("assignments component does not expose render_assignments()")
+elif current == "Assignments":
+    assignments.render_assignments()
+elif current == "Modules":
+    modules.render_modules()

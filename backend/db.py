@@ -1,4 +1,4 @@
-# backend/backend/db.py
+# backend/db.py
 # Optional DB helper — not required for storage-only operations.
 # Keep this file for future SQLAlchemy/Postgres usage.
 

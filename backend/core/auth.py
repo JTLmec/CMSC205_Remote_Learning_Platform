@@ -5,6 +5,9 @@ from typing import Optional, Callable, List, Dict, Any
 from fastapi import Header, HTTPException, status
 from supabase import create_client
 from core import config
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 # Validate config early so deploy fails fast with helpful message
 if not getattr(config, "SUPABASE_URL", None) or not (
@@ -30,6 +33,20 @@ async def _get_user_id_from_token(authorization: Optional[str]) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
 
     token = authorization.split(" ", 1)[1].strip()
+
+    # -----------------------
+    # AUTH DEBUG (masked)
+    # -----------------------
+    try:
+        if token and isinstance(token, str):
+            masked_token = token[:20] + "..." + token[-8:] if len(token) > 40 else token[:10] + "..."
+        else:
+            masked_token = "<no-token>"
+    except Exception:
+        masked_token = "<mask-error>"
+    print(f"[AUTH-DEBUG] incoming Authorization (masked): {masked_token}", flush=True)
+    # -----------------------
+
     try:
         # Use supabase's auth.get_user to validate token and retrieve user info
         resp = _supabase_admin.auth.get_user(token)
@@ -56,6 +73,12 @@ async def _get_user_id_from_token(authorization: Optional[str]) -> str:
             user_id = user.get("id") or (user.get("user") and user.get("user").get("id"))
         else:
             user_id = getattr(user, "id", None)
+
+        # -----------------------
+        # AUTH DEBUG (user info)
+        # -----------------------
+        print(f"[AUTH-DEBUG] get_user response shape: type={type(resp).__name__}; user_id_extracted={user_id!r}", flush=True)
+        # -----------------------
 
         if not user_id:
             raise Exception("User id not found from token")
@@ -87,9 +110,21 @@ def _fetch_profile(user_id: str) -> Optional[Dict[str, Any]]:
         if data:
             # data might be a list (rows) or a dict (single row)
             if isinstance(data, list) and len(data) > 0:
-                return data[0]
+                profile = data[0]
             elif isinstance(data, dict):
-                return data
+                profile = data
+            else:
+                profile = None
+        else:
+            profile = None
+
+        # -----------------------
+        # AUTH DEBUG (profile lookup)
+        # -----------------------
+        print(f"[AUTH-DEBUG] profile_lookup_result for user_id={user_id!r}: {profile!r}", flush=True)
+        # -----------------------
+
+        return profile
     except Exception:
         traceback.print_exc()
     return None
@@ -128,17 +163,91 @@ def require_any_role(allowed_roles: List[str]) -> Callable:
     """
     allowed_lower = [r.lower() for r in allowed_roles]
 
-    async def _dependency(authorization: Optional[str] = Header(None)):
-        user_id = await _get_user_id_from_token(authorization)
-        profile = _fetch_profile(user_id)
-        if not profile:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User profile not found")
-        user_role = (profile.get("role") or "").lower()
-        if user_role == "admin" or user_role in allowed_lower:
-            return profile
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
+    async def _get_user_id_from_token(authorization: Optional[str]) -> str:
+        """
+         Extract user id from the incoming Authorization header by asking Supabase's get_user.
+         Expects header like: "Bearer <access_token>".
+         Raises HTTPException(401) on error.
+         """
+    import sys
 
-    return _dependency
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
+
+    token = authorization.split(" ", 1)[1].strip()
+
+    # -----------------------
+    # AUTH DEBUG (masked) - log to both logger and stderr to guarantee visibility
+    # -----------------------
+    try:
+        if token and isinstance(token, str):
+            masked_token = token[:20] + "..." + token[-8:] if len(token) > 40 else token[:10] + "..."
+        else:
+            masked_token = "<no-token>"
+    except Exception:
+        masked_token = "<mask-error>"
+
+    # logger (normal)
+    logger.warning(f"[AUTH-DEBUG] incoming Authorization (masked): {masked_token}")
+    # guaranteed stderr write
+    try:
+        sys.stderr.write(f"[AUTH-DEBUG] incoming Authorization (masked): {masked_token}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    # -----------------------
+
+    try:
+        # Use supabase's auth.get_user to validate token and retrieve user info
+        resp = _supabase_admin.auth.get_user(token)
+
+        # Normalize different client return shapes
+        user = None
+        if isinstance(resp, dict) and "data" in resp:
+            data = resp.get("data") or {}
+            user = data.get("user") or data
+        elif hasattr(resp, "data"):
+            data = getattr(resp, "data", None)
+            if isinstance(data, dict) and "user" in data:
+                user = data["user"]
+            else:
+                user = data
+        else:
+            user = resp
+
+        # user can be dict-like or object-like
+        user_id = None
+        if isinstance(user, dict):
+            user_id = user.get("id") or (user.get("user") and user.get("user").get("id"))
+        else:
+            user_id = getattr(user, "id", None)
+
+        # -----------------------
+        # AUTH DEBUG (user info)
+        # -----------------------
+        logger.warning(f"[AUTH-DEBUG] get_user response shape: type={type(resp).__name__}; user_id_extracted={user_id!r}")
+        try:
+            sys.stderr.write(f"[AUTH-DEBUG] get_user response shape: type={type(resp).__name__}; user_id_extracted={user_id!r}\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        # -----------------------
+
+        if not user_id:
+            raise Exception("User id not found from token")
+
+        return user_id
+    except HTTPException:
+        raise
+    except Exception as e:
+        # attempt to surface more detail to stderr as well
+        traceback.print_exc()
+        try:
+            sys.stderr.write(f"[AUTH-DEBUG] get_user exception: {e}\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {e}")
 
 
 # Convenience small wrappers
