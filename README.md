@@ -46,14 +46,14 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 # backend run: leave running in terminal
-uvicorn backend.main:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 
 # in another terminal: frontend
 cd frontend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-streamlit run frontend/main.py --server.port 8501
+streamlit run main.py --server.port 8501
 
 	3.	Configure .env files (see CONFIGURATION section below)
 
