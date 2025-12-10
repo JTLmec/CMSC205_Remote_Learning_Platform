@@ -34,25 +34,25 @@ See FOLDER_STRUCTURE.md in this repo (or the section below).
 Quick start (local)
 	1.	Clone the repo
 
-git clone <repo-url>
-cd remote-learning-platform
+	git clone <repo-url>
+	cd remote-learning-platform
 
 	2.	Create virtual environments for backend and frontend (optional but recommended)
 
-# backend
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-# backend run: leave running in terminal
-uvicorn main:app --reload --port 8000
+	# backend
+	cd backend
+	python3 -m venv .venv
+	source .venv/bin/activate
+	pip install -r requirements.txt
+	# backend run: leave running in terminal
+	uvicorn main:app --reload --port 8000
 
-# in another terminal: frontend
-cd frontend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run main.py --server.port 8501
+	# in another terminal: frontend
+	cd frontend
+	python3 -m venv .venv
+	source .venv/bin/activate
+	pip install -r requirements.txt
+	streamlit run main.py --server.port 8501
 
 	3.	Configure .env files (see CONFIGURATION section below)
 
