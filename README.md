@@ -1,10 +1,9 @@
 Remote Learning Platform (CMSC205 Project)
 
-Short description: A simple offline-first remote learning platform where teachers upload materials and students can download them. The app demonstrates TCP/UDP concepts in the course and integrates a cloud backend (Supabase) for auth and storage.
-
+Short description: A simple offline-first remote learning platform where teachers upload materials and students can download them. 
 Overview
 
-A modular offline-first remote learning platform built with:
+A modular remote learning platform built with:
 
 Backend: FastAPI (Python)
 
@@ -57,25 +56,25 @@ streamlit run main.py --server.port 8501
 
 	3.	Configure .env files (see CONFIGURATION section below)
 
-Configuration
+	Configuration
 
-Create .env in backend and frontend directories, or set the environment variables in your terminal.
+	Create .env in backend and frontend directories, or set the environment variables in your terminal.
 
-Main variables:
+	Main variables:
 
-# backend/.env
-SUPABASE_URL=https://<your-project>.supabase.co
-SUPABASE_SERVICE_ROLE=<service-role-key>
-SUPABASE_ANON_KEY=<anon-key>
-DATABASE_URL=<postgres-connection-url>   # optional if using DB
-JWT_SECRET=some-secret
+	# backend/.env
+	SUPABASE_URL=https://<your-project>.supabase.co
+	SUPABASE_SERVICE_ROLE=<service-role-key>
+	SUPABASE_ANON_KEY=<anon-key>
+	DATABASE_URL=<postgres-connection-url>   # optional if using DB
+	JWT_SECRET=some-secret
 
-# frontend/.env
-SUPABASE_URL=https://<your-project>.supabase.co
-SUPABASE_ANON_KEY=<anon-key>
-API_BASE=http://127.0.0.1:8000
+	# frontend/.env
+	SUPABASE_URL=https://<your-project>.supabase.co
+	SUPABASE_ANON_KEY=<anon-key>
+	API_BASE=http://<Your IP>
 
-Security: Never commit .env or keys — put them in .gitignore.
+	Security: Never commit .env or keys — put them in .gitignore.
 
 Deploy to Render (short)
 	1.	Push code to GitHub
