@@ -2,3 +2,4 @@ streamlit
 requests
 python-dotenv
 supabase
+websockets>=10.4

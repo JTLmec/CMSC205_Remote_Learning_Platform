@@ -38,37 +38,25 @@ def list_files(bucket: str) -> List[Dict[str, Any]]:
     Return a normalized list of objects with at least a 'name' key:
       [ {"name": "<path>"}, ... ]
     This hides differences between storage client versions.
+    Returns empty list on error or if no files found.
     """
     try:
         raw = _supabase.storage.from_(bucket).list()
+        if not raw:
+            return []
+
         normalized = []
-
-        # raw may sometimes be a dict with "data" or similar depending on SDK; handle common shapes
+        # Handle case where raw is a dict with 'data' or similar
+        items = raw
         if isinstance(raw, dict):
-            # e.g. { "data": [...], "error": None } or storage3 returns dict
-            if "data" in raw and isinstance(raw["data"], list):
-                items = raw["data"]
-            elif "message" in raw and isinstance(raw.get("message"), list):
-                items = raw["message"]
-            else:
-                # fallback: try to inspect the dict keys for list-like values
-                items = []
-                for v in raw.values():
-                    if isinstance(v, list):
-                        items = v
-                        break
-        else:
-            items = raw
+            items = raw.get("data", []) if "data" in raw else raw.values()
 
-        # items can be list of dicts or list of strings
         for obj in items or []:
             if isinstance(obj, dict):
-                # prefer 'name' (common) but accept other common keys
                 name = obj.get("name") or obj.get("Key") or obj.get("path") or obj.get("id") or obj.get("key")
                 if name:
                     normalized.append({"name": name, **{k: v for k, v in obj.items() if k != "name"}})
                 else:
-                    # no name found, serialize object
                     normalized.append({"name": str(obj)})
             elif isinstance(obj, str):
                 normalized.append({"name": obj})
@@ -77,9 +65,9 @@ def list_files(bucket: str) -> List[Dict[str, Any]]:
 
         return normalized
 
-    except Exception:
-        logger.exception("list_files error")
-        raise
+    except Exception as e:
+        logger.error(f"Error listing files in bucket {bucket}: {str(e)}")
+        return []  # Return empty list instead of raising
 
 def create_signed_url(bucket: str, path: str, expires: int = 3600) -> Dict[str, str]:
     """
